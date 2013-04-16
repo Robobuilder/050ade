@@ -177,42 +177,36 @@ void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 	 * 
 	 * TODO In a pipe ls | cat , ls is the child process, writes to write end of pipe the execv ls, parent then reads into "cat"
 	 */
+	pid_t pid;
 
-	int child_pid; /* Child process id . */
-	int child_status; 	/* Exit status from the child . */
+	pid=fork();
+	if(pid==0){
+		int pipe_fd[2];
+		if(doing_pipe){
+			 if (pipe(pipe_fd) == -1) {
+			        perror("pipe");
+			        exit(EXIT_FAILURE);
+			    }else{
+			    	dup2(output_fd,STDIN_FILENO);
 
-	if ((child_pid = fork()) < 0){
-		error("fork failed");
-	} else if (child_pid == 0){
-		// This code is only run by child. TODO ls here?
-		printf("i am the child with pid: %d\n", getpid());
-		char*command; /* Command we are looking for , eg "gcc". */
-		char* directory; /* Pathname of a directory , eg "/usr/bin". */
-		char file[BUFSIZ]; /* File to load . */
-
-		/* Produces eg "/usr/bin/gcc" in f i l e . */
-		sprintf(file, "%s/%s", directory, command);
-		if (access(file, X_OK) == 0) {
-			/* We found the f i l e and we are allowed to exec i t . */
-			argv[0] = file; /* First element of argument vector i s the path (command path). */
-			execv(argv[0], argv); /*Path and argument vector to the program. */
-			/* Should not come here unless execv f a i l s . */
+			    }
 		}
-
-	} else if (foreground){ //Want to wait
-		waitpid(child_pid, &child_status, 0);
-		if( !WIFEXITED(child_status) )
-		{
-		   printf("waitpid() exited with an error: Status= " //Taking care of child exec errors.
-				   + WEXITSTATUS(child_status)
-				   );
-		} else if( WIFSIGNALED(child_status) )
-			{
-		   prinf("waitpid() exited due to a signal: Signal = "
-				   + WTERMSIG(child_status)
-				   );
+		list_t* itr=path_dir_list;
+		while(itr!=0){
+			char file[200];
+			sprintf(file, "%s/%s", itr->data, argv[0]);
+			if(access(file, X_OK)==0){
+				argv[0] = file;
+				execv(argv[0],argv);
 			}
+			itr=itr->succ;
+		}
+		 if (pipe(pipe_fd) == -1) {
+		        perror("pipe");
+		        exit(EXIT_FAILURE);
+		  }
 	}
+
 
 
 }
