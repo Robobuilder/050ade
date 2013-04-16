@@ -53,8 +53,7 @@ int fetch_line(char* prompt)
 	for (;;) {
 
 		c = getchar();
-		printf("%c", c);
-		printf("; ");
+
 		if (c == EOF)
 			return EOF;
 
@@ -169,46 +168,49 @@ void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 	 * is true then basically you should wait but when we are
 	 * running a command in a pipe such as PROG1 | PROG2 you might
 	 * not want to wait for each of PROG1 and PROG2...
-	 * 
+	 *
 	 * hints:
 	 *  snprintf is useful for constructing strings.
-	 *  access is useful for checking wether a path refers to an 
+	 *  access is useful for checking wether a path refers to an
 	 *      executable program.
-	 * 
+	 *
 	 * TODO In a pipe ls | cat , ls is the child process, writes to write end of pipe the execv ls, parent then reads into "cat"
 	 */
-	pid_t pid;
 
-	pid=fork();
-	if(pid==0){
-		int pipe_fd[2];
-		if(doing_pipe){
-			 if (pipe(pipe_fd) == -1) {
-			        perror("pipe");
-			        exit(EXIT_FAILURE);
-			    }else{
-			    	dup2(output_fd,STDIN_FILENO);
 
-			    }
+	int child_pid;
+	int child_status;
+	child_pid = fork();
+
+	if ((child_pid) != 0){
+		if(foreground && !doing_pipe){
+			waitpid(child_pid,&child_status,0);
+		} else if(!doing_pipe){
+			printf("i am the child with pid: %d\n", getpid());
 		}
-		list_t* itr=path_dir_list;
-		while(itr!=0){
-			char file[200];
-			sprintf(file, "%s/%s", itr->data, argv[0]);
+		return;
+	}
+
+	dup2(output_fd, fileno(stdout)); // dup2() makes arg1 be the copy of arg0, closing arg1 first if necessary.
+	dup2(input_fd, fileno(stdin));
+
+
+	list_t* itr= path_dir_list;
+	list_t* itrEnd = itr->pred;
+	char* command = argv[0];
+	if(itr != NULL){
+		while(itr!= itrEnd){
+			char* data = itr->data;
+			char file[strlen(data) + strlen(command)];
+			sprintf(file, "%s/%s", data, command);
 			if(access(file, X_OK)==0){
 				argv[0] = file;
 				execv(argv[0],argv);
+				error("execv returned");
 			}
 			itr=itr->succ;
 		}
-		 if (pipe(pipe_fd) == -1) {
-		        perror("pipe");
-		        exit(EXIT_FAILURE);
-		  }
 	}
-
-
-
 }
 
 void parse_line(void)
@@ -227,12 +229,15 @@ void parse_line(void)
 	for (;;) {
 
 		foreground	= true;
-		doing_pipe	= false;
+		doing_pipe	= false; // On cat the doing_pipe is false.
 
 		type = gettoken(&argv[argc]);
+		printf("%i",type);
+		printf("\r\n");
 
 		switch (type) {
 		case NORMAL:
+			//printf("incase normal\r\n");
 			argc += 1;
 			break;
 
@@ -266,7 +271,12 @@ void parse_line(void)
 			break;
 
 		case PIPE:
+			printf("in case pipe\r\n");
 			doing_pipe = true;
+			if (pipe(pipe_fd) < 0){
+				error("error: unable to create pipe filedescriptors", NULL);
+			}
+			output_fd = pipe_fd[1]; // REDIR this output for ls
 
 			/*FALLTHROUGH*/
 
@@ -282,11 +292,20 @@ void parse_line(void)
 				return;
 
 			argv[argc] = NULL;
-
+			printf("Excecuting \r\n");
 			run_program(argv, argc, foreground, doing_pipe);
 
-			input_fd	= 0;
-			output_fd	= 0;
+			if(input_fd != fileno(stdin)) //When for eǵ cat has run, close loose pipe
+			close(input_fd);
+
+			input_fd	= fileno(stdout); // When we dup2 in execute the stdout and stdin are "reset"
+
+			if(doing_pipe){ //Got back need to close pipe.
+							input_fd = pipe_fd[0]; // Need to read before closing redir outputpipe.
+							close(output_fd);//Close the open pipe output in parent
+						}
+
+			output_fd	= fileno(stdout);
 			argc		= 0;
 
 			if (type == NEWLINE)
@@ -362,6 +381,7 @@ static void init_search_path(void)
 int main(int argc, char** argv)
 {
 	progname = argv[0];
+
 	init_search_path();	
 
 	while (fetch_line("% ") != EOF)
