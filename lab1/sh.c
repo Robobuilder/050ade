@@ -53,7 +53,8 @@ int fetch_line(char* prompt)
 	for (;;) {
 
 		c = getchar();
-
+		printf("%c", c);
+		printf("; ");
 		if (c == EOF)
 			return EOF;
 
@@ -113,19 +114,19 @@ int gettoken(char** outptr)
 	case '<':
 		type = INPUT;
 		break;
-	
+
 	case '>':
 		type = OUTPUT;
 		break;
-	
+
 	case '&':
 		type = AMPERSAND;
 		break;
-	
+
 	case '|':
 		type = PIPE; 
 		break;
-	
+
 	default:
 		type = NORMAL;
 
@@ -134,7 +135,7 @@ int gettoken(char** outptr)
 	}
 
 	*token++ = 0; /* null-terminate the string. */
-	
+
 	return type;
 }
 
@@ -162,8 +163,8 @@ void error(char *fmt, ...)
 void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 {
 	/* you need to fork, search for the command in argv[0],
-         * setup stdin and stdout of the child process, execv it.
-         * the parent should sometimes wait and sometimes not wait for
+	 * setup stdin and stdout of the child process, execv it.
+	 * the parent should sometimes wait and sometimes not wait for
 	 * the child process (you must figure out when). if foreground
 	 * is true then basically you should wait but when we are
 	 * running a command in a pipe such as PROG1 | PROG2 you might
@@ -174,8 +175,46 @@ void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 	 *  access is useful for checking wether a path refers to an 
 	 *      executable program.
 	 * 
-	 * 
+	 * TODO In a pipe ls | cat , ls is the child process, writes to write end of pipe the execv ls, parent then reads into "cat"
 	 */
+
+	int child_pid; /* Child process id . */
+	int child_status; 	/* Exit status from the child . */
+
+	if ((child_pid = fork()) < 0){
+		error("fork failed");
+	} else if (child_pid == 0){
+		// This code is only run by child. TODO ls here?
+		printf("i am the child with pid: %d\n", getpid());
+		char*command; /* Command we are looking for , eg "gcc". */
+		char* directory; /* Pathname of a directory , eg "/usr/bin". */
+		char file[BUFSIZ]; /* File to load . */
+
+		/* Produces eg "/usr/bin/gcc" in f i l e . */
+		sprintf(file, "%s/%s", directory, command);
+		if (access(file, X_OK) == 0) {
+			/* We found the f i l e and we are allowed to exec i t . */
+			argv[0] = file; /* First element of argument vector i s the path (command path). */
+			execv(argv[0], argv); /*Path and argument vector to the program. */
+			/* Should not come here unless execv f a i l s . */
+		}
+
+	} else if (foreground){ //Want to wait
+		waitpid(child_pid, &child_status, 0);
+		if( !WIFEXITED(child_status) )
+		{
+		   printf("waitpid() exited with an error: Status= " //Taking care of child exec errors.
+				   + WEXITSTATUS(child_status)
+				   );
+		} else if( WIFSIGNALED(child_status) )
+			{
+		   prinf("waitpid() exited due to a signal: Signal = "
+				   + WTERMSIG(child_status)
+				   );
+			}
+	}
+
+
 }
 
 void parse_line(void)
@@ -192,7 +231,7 @@ void parse_line(void)
 	argc		= 0;
 
 	for (;;) {
-			
+
 		foreground	= true;
 		doing_pipe	= false;
 
@@ -207,7 +246,7 @@ void parse_line(void)
 			type = gettoken(&argv[argc]);
 			if (type != NORMAL) {
 				error("expected file name: but found %s", 
-					argv[argc]);
+						argv[argc]);
 				return;
 			}
 
@@ -222,7 +261,7 @@ void parse_line(void)
 			type = gettoken(&argv[argc]);
 			if (type != NORMAL) {
 				error("expected file name: but found %s", 
-					argv[argc]);
+						argv[argc]);
 				return;
 			}
 
@@ -247,7 +286,7 @@ void parse_line(void)
 
 			if (argc == 0)
 				return;
-						
+
 			argv[argc] = NULL;
 
 			run_program(argv, argc, foreground, doing_pipe);
@@ -278,7 +317,7 @@ static void init_search_path(void)
 	/* path may look like "/bin:/usr/bin:/usr/local/bin" 
 	 * and this function makes a list with strings 
 	 * "/bin" "usr/bin" "usr/local/bin"
- 	 *
+	 *
 	 */
 
 	dir_start = malloc(1+strlen(path));
@@ -329,7 +368,6 @@ static void init_search_path(void)
 int main(int argc, char** argv)
 {
 	progname = argv[0];
-
 	init_search_path();	
 
 	while (fetch_line("% ") != EOF)
