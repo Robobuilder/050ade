@@ -214,10 +214,21 @@ void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 	 * Back in the parent, fork didn't succeed.
 	 */
 	if(foreground && !doing_pipe){
-				waitpid(child_pid,&child_status,0);
-			} else if(!doing_pipe){
-				printf("i am the child with pid: %d\n", getpid());
-			}
+		waitpid(child_pid,&child_status,0);
+
+		if( !WIFEXITED(child_status) )
+		{
+			printf("waitpid() exited with an error: Status= ");
+			printf(WEXITSTATUS(child_status));
+		}
+		else if( WIFSIGNALED(child_status) )
+		{
+			printf("waitpid() exited due to a signal: ");
+			printf(WTERMSIG(child_status));
+		}
+	} else if(!doing_pipe){
+		printf("i am the child with pid: %d\n", getpid());
+	}
 }
 
 void parse_line(void)
@@ -303,15 +314,15 @@ void parse_line(void)
 			run_program(argv, argc, foreground, doing_pipe);
 
 			if(input_fd != fileno(stdin)){ //When for eǵ cat has run, close loose pipe
-			close(input_fd);
+				close(input_fd);
 			}
 
 			input_fd	= fileno(stdin); // When we dup2 in execute the stdout and stdin are "reset"
 
 			if(doing_pipe){ //Got back from output pipe need to close pipe and redir to input pipe.
-							input_fd = pipe_fd[0]; // Need to read before closing redir outputpipe.
-							close(output_fd);//Close the open pipe output in parent
-						}
+				input_fd = pipe_fd[0]; // Need to read before closing redir outputpipe.
+				close(output_fd);//Close the open pipe output in parent
+			}
 
 			output_fd	= fileno(stdout);
 			argc		= 0;
