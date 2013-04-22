@@ -12,17 +12,17 @@
  * The first argument to the function ‘signal’ is the signal we intend the
  * signal handler to handle which is SIGINT in this case.
  */
-int proceed;
 
-void intr(int code) {
-	printf("Handeled signal in sigset ss");
+int proceed;
+void instl(int code) {
+	//printf("In the handler");
 	proceed = 0;
 }
 
 
 void usr2(int code) {
 	fprintf(stderr, "\nUSR2\r\n");
-	exit(0);
+	//exit(0);
 }
 
 /*void sig_handler(int signo)
@@ -35,75 +35,71 @@ void usr2(int code) {
 	        printf("received SIGSTOP\n");
 }*/
 
-
-int main()
+void
+usr2_handler(void)
 {
-	sigset_t sigset;
-	struct sigaction usrnewact;
 	struct sigaction usr2act;
-
-	sigset_t received_set;
-
-	sigemptyset(&sigset); //Initialise sigset to include all defined functions.
-	sigaddset(&sigset, SIGINT);
-
-	usrnewact.sa_mask = sigset; // ignore these signals
-	usrnewact.sa_handler = intr; // How to handle signals, through function intr.
-	usrnewact.sa_flags = 0;
-
-	proceed = 1;
-
-	/**
-	 * int sigaction( int sig, const struct sigaction *act,
-                struct sigaction *oact );
-                If failed to store sigaction, exit program.
-	 *
-	 */
-	if (sigaction(SIGALRM, &usrnewact, NULL) == -1) exit(0);
 
 	usr2act.sa_handler = usr2;
 	usr2act.sa_flags = 0;
 
 	if (sigaction(SIGUSR2, &usr2act, NULL) == -1) exit(0);
 
-	alarm(10);
+}
+
+sigset_t blockmask;
+void
+install_handler(void)
+{
+      struct sigaction setup_action;
+
+      sigemptyset (&blockmask); // Block these signals when executing signal handler.
+      /* Block other terminal-generated signals while handler runs. */
+      sigaddset (&blockmask, SIGINT);
+      sigaddset(&blockmask,SIGQUIT);
+      sigaddset(&blockmask,SIGUSR1);
+      setup_action.sa_handler = instl;
+      setup_action.sa_mask = blockmask;
+      setup_action.sa_flags = 0;
+      if( sigaction (SIGTSTP, &setup_action, NULL) == -1) exit(0);
+      if (sigaction(SIGALRM, &setup_action, NULL) == -1) exit(0);
+    }
 
 
-	/*if (signal(SIGUSR1, sig_handler) == SIG_ERR)
-	        printf("\ncan't catch SIGUSR1\n");
-	    if (signal(SIGKILL, sig_handler) == SIG_ERR)
-	        printf("\ncan't catch SIGKILL\n");
-	    if (signal(SIGSTOP, sig_handler) == SIG_ERR)
-	        printf("\ncan't catch SIGSTOP\n");
-	 */
-	int i = 0;
-	while(i < 10){
-		sleep(2);
-		++i;
+int main()
+{
+	install_handler();
+	usr2_handler();
+
+	sigset_t received_set;
+	alarm(20);
+
+	proceed = 1; // Flag
+
+	sigprocmask(SIG_BLOCK, &blockmask, &received_set);
+
+	printf("Entering loop");
+	int k = 0;
+	while(proceed == 1){
+		k ++;
 	}
+	printf("This is how many times we executed: ");
+	printf("%i", k);
+	printf("Exiting loop");
 
-	if( sigpending(&received_set) == -1) exit(0);
+	if(sigpending(&received_set) == -1) exit(0);
 
-	for(i=0; i < _NSIG-1; ++i)
+	int i;
+	for(i = 0; i < _NSIG-1; ++i)
 		if(sigismember(&received_set, i)) fprintf(stderr, "BLOCKED: SIG-%d\n", i );
 
-	/*
-	 * Crash in 1 and 2;
+	/**
+	 *   The signals in set are removed from the current set of blocked
+     *   signals.  It is permissible to attempt to unblock a signal which is
+     *   not blocked.
 	 */
 
-#if 0
-	char name[] = "Jhon";
-	int age = 10;
-	int height = 190;
-	int* p = &height;
-
-	// crash line
-	//p += 0xEFF;
-
-	printf("Hello, my name is %s.\n", name);
-	printf("My age is %d.\n", age);
-	printf("I am %d cm tall.\n", *p);
-#endif
+	sigprocmask(SIG_UNBLOCK, &blockmask, &received_set);
 
 	return 0;
 }
