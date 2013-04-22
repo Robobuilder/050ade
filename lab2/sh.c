@@ -219,12 +219,18 @@ void run_program(char** argv, int argc, bool foreground, bool doing_pipe)
 		if( !WIFEXITED(child_status) )
 		{
 			printf("waitpid() exited with an error: Status= ");
-			printf(WEXITSTATUS(child_status));
+			printf("%u", WEXITSTATUS(child_status));
+			printf("\r\n");
 		}
 		else if( WIFSIGNALED(child_status) )
 		{
 			printf("waitpid() exited due to a signal: ");
-			printf(WTERMSIG(child_status));
+			printf("%u", WTERMSIG(child_status));
+			printf("\r\n");
+		} else if( WIFEXITED(child_status)){
+			printf("waitpid() exited normally Status= ");
+			printf("%u", WEXITSTATUS(child_status));
+			printf("\r\n ");
 		}
 	} else if(!doing_pipe){
 		printf("i am the child with pid: %d\n", getpid());
