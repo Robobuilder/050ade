@@ -78,14 +78,13 @@ int main()
 
 	sigprocmask(SIG_BLOCK, &blockmask, &received_set);
 
-	printf("Entering loop");
+	fprintf(stderr, "Entering loop \n");
 	int k = 0;
 	while(proceed == 1){
-		k ++;
+		++k;
 	}
-	printf("This is how many times we executed: ");
-	printf("%i", k);
-	printf("Exiting loop");
+	fprintf(stderr, "This is how many times we executed: ");
+	fprintf(stderr,"%u\n", k);
 
 	if(sigpending(&received_set) == -1) exit(0);
 
