@@ -22,7 +22,7 @@ void instl(int code) {
 
 void usr2(int code) {
 	fprintf(stderr, "\nUSR2\r\n");
-	//exit(0);
+	exit(0);
 }
 
 /*void sig_handler(int signo)
@@ -61,7 +61,7 @@ install_handler(void)
       setup_action.sa_handler = instl;
       setup_action.sa_mask = blockmask;
       setup_action.sa_flags = 0;
-      if( sigaction (SIGTSTP, &setup_action, NULL) == -1) exit(0);
+      //if( sigaction (SIGTSTP, &setup_action, NULL) == -1) exit(0);
       if (sigaction(SIGALRM, &setup_action, NULL) == -1) exit(0);
     }
 
@@ -88,10 +88,12 @@ int main()
 
 	if(sigpending(&received_set) == -1) exit(0);
 
-	int i;
-	for(i = 0; i < _NSIG-1; ++i)
-		if(sigismember(&received_set, i)) fprintf(stderr, "BLOCKED: SIG-%d\n", i );
-
+	/*int i;
+	for(i = 0; i < _NSIG-1; ++i)*/
+		fprintf(stderr, "Blocked the following signals: ");
+		if(sigismember(&received_set, SIGUSR1)) fprintf(stderr, "%d\n", SIGUSR1 );
+		if(sigismember(&received_set, SIGQUIT)) fprintf(stderr, "%d\n", SIGQUIT );
+		if(sigismember(&received_set, SIGINT)) fprintf(stderr, "%d\n", SIGINT );
 	/**
 	 *   The signals in set are removed from the current set of blocked
      *   signals.  It is permissible to attempt to unblock a signal which is
