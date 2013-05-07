@@ -168,11 +168,42 @@ static unsigned take_phys_page()
 
 static void pagefault(unsigned virt_page)
 {
+	/* find an available physical page, place the correct data in that page,
+	update the virtual-to-physical page translation mechanism and then tell the
+	hardware to retry the operation. */
+
 	unsigned		page;
 
 	num_pagefault += 1;
 
 	page = take_phys_page();
+	/*A 32 byte page descriptor -> pointer to the address space the page belongs to,
+	pred and succ pointers to make up a list (eg of free pages in the buddy
+	allocator)
+	mem_map is an array of page descriptors
+	*/
+
+	coremap_entry_t* ce = &coremap[page];
+	page_table_entry_t* pte = &page_table[virt_page];
+
+	unsigned swapPage;
+	/* Check weather the pagetable entry is in memory */
+	if(!pte->inmemory){
+		swapPage = pte->page;
+	} else{
+		swapPage = new_swap_page();
+	}
+
+	ce->owner = pte;
+	ce->page = swapPage;
+	/* Set page table entry's to be right */
+	pte->page = page;
+	pte->inmemory = 1;
+	pte->ondisk = 0;
+
+	read_page(page, ce->page);
+
+
 }
 
 static void translate(unsigned virt_addr, unsigned* phys_addr, bool write)
