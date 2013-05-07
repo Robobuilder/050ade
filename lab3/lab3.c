@@ -144,7 +144,9 @@ static unsigned fifo_page_replace()
 {
 	int	page;
 
-	page = (++swapCounter)%RAM_PAGES; //lol, cant be int max if we dont have huuuge ram.
+	page = (swapCounter+1)%RAM_PAGES; //lol, cant be int max if we dont have huuuge ram.
+
+	swapCounter = page;
 
 	assert(page < RAM_PAGES);
 
@@ -180,6 +182,7 @@ static unsigned take_phys_page()
 		pte->modified = 0;
 		pte->inmemory = 0;
 		pte->ondisk = 1;
+		printf("take_phys_page:\tcoremap#: %d\tpagetable#:%d\n", ce->page, pte->page);
 	}
 
 	return page;
@@ -207,7 +210,7 @@ static void pagefault(unsigned virt_page)
 
 	unsigned swapPage;
 	/* Check weather the pagetable entry is in memory */
-	if(!pte->inmemory){
+	if(pte->ondisk){
 		swapPage = pte->page;
 	} else{
 		swapPage = new_swap_page();
@@ -219,6 +222,7 @@ static void pagefault(unsigned virt_page)
 	/* Set page table entry's to be right */
 	pte->page = page;
 	pte->inmemory = 1;
+	pte->modified = 0;
 	pte->ondisk = 0;
 
 	/* After the page fault is dealt with, the page is re-read. */
