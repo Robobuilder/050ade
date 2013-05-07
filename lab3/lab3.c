@@ -163,11 +163,16 @@ static unsigned take_phys_page()
 	unsigned		page;	/* Page to be replaced. */
 
 	page = (*replace)();
-
 	coremap_entry_t* ce = &coremap[page];
+
 	page_table_entry_t* pte = ce->owner;
 
 	/*Check if we have a dirty page, if so use swap file to save in */
+
+	if(pte->modified){
+		write_page(page,ce->page) // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
+	}
+
 
 
 	return page;
