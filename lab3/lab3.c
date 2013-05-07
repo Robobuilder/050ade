@@ -173,7 +173,7 @@ static unsigned take_phys_page()
 	/*Check if we have a dirty page, if so use swap file to save in */
 	if(pte != 0){
 		if(pte->modified){
-			write_page(page,ce->page) // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
+			write_page(page,ce->page); // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
 		}
 
 		pte->page = ce->page; // Set the page to point to the swap, if accessed before dumped to disk is easy to do.
