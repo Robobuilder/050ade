@@ -35,23 +35,23 @@
 #define HALT    (16)
 
 char*	mnemonics[] = { 
-	[ADD] = "add",
-	[ADDI] = "addi",
-	[SUB] = "sub",
-	[SUBI] = "subi",
-	[SGE] = "sge",
-	[SGT] = "sgt",
-	[SEQ] = "seq",
-	[SEQI] = "seqi",
-	[BT] = "bt",
-	[BF] = "bf",
-	[BA] = "ba",
-	[ST] = "st",
-	[LD] = "ld",
-	[CALL] = "call",
-	[JMP] = "jmp",
-	[MUL] = "mul",
-	[HALT] = "halt",
+		[ADD] = "add",
+		[ADDI] = "addi",
+		[SUB] = "sub",
+		[SUBI] = "subi",
+		[SGE] = "sge",
+		[SGT] = "sgt",
+		[SEQ] = "seq",
+		[SEQI] = "seqi",
+		[BT] = "bt",
+		[BF] = "bf",
+		[BA] = "ba",
+		[ST] = "st",
+		[LD] = "ld",
+		[CALL] = "call",
+		[JMP] = "jmp",
+		[MUL] = "mul",
+		[HALT] = "halt",
 };
 
 typedef struct {
@@ -79,6 +79,7 @@ static coremap_entry_t		coremap[RAM_PAGES];	/* OS data structure. */
 static unsigned			memory[RAM_SIZE];	/* Hardware: RAM. */
 static unsigned			swap[SWAP_SIZE];	/* Hardware: disk. */
 static unsigned			(*replace)(void);	/* Page repl. alg. */
+static unsigned			swapCounter = 0; // Start from page 0.
 
 unsigned make_instr(unsigned opcode, unsigned dest, unsigned s1, unsigned s2)
 {
@@ -119,15 +120,15 @@ void error(char* fmt, ...)
 static void read_page(unsigned phys_page, unsigned swap_page)
 {
 	memcpy(&memory[phys_page * PAGESIZE], 
-		&swap[swap_page * PAGESIZE], 
-		PAGESIZE * sizeof(unsigned));
+			&swap[swap_page * PAGESIZE],
+			PAGESIZE * sizeof(unsigned));
 }
 
 static void write_page(unsigned phys_page, unsigned swap_page)
 {
 	memcpy(&swap[swap_page * PAGESIZE], 
-		&memory[phys_page * PAGESIZE], 
-		PAGESIZE * sizeof(unsigned));
+			&memory[phys_page * PAGESIZE],
+			PAGESIZE * sizeof(unsigned));
 }
 
 static unsigned new_swap_page()
@@ -142,16 +143,18 @@ static unsigned new_swap_page()
 static unsigned fifo_page_replace()
 {
 	int	page;
-	
-	page = INT_MAX; 
+
+	page = (++swapCounter)%RAM_PAGES; //lol, cant be int max if we dont have huuuge ram.
 
 	assert(page < RAM_PAGES);
+
+	return page;
 }
 
 static unsigned second_chance_replace()
 {
 	int	page;
-	
+
 	page = INT_MAX; 
 
 	assert(page < RAM_PAGES);
@@ -168,17 +171,16 @@ static unsigned take_phys_page()
 	page_table_entry_t* pte = ce->owner;
 
 	/*Check if we have a dirty page, if so use swap file to save in */
+	if(pte != 0){
+		if(pte->modified){
+			write_page(page,ce->page) // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
+		}
 
-	if(pte->modified){
-		write_page(page,ce->page) // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
+		pte->page = ce->page; // Set the page to point to the swap, if accessed before dumped to disk is easy to do.
+		pte->modified = 0;
+		pte->inmemory = 0;
+		pte->ondisk = 1;
 	}
-
-	pte->page = ce->page; // Set the page to point to the swap, if accessed before dumped to disk is easy to do.
-	pte->inmemory = 0;
-	pte->ondisk = 1;
-
-
-
 
 	return page;
 }
@@ -198,7 +200,7 @@ static void pagefault(unsigned virt_page)
 	pred and succ pointers to make up a list (eg of free pages in the buddy
 	allocator)
 	mem_map is an array of page descriptors
-	*/
+	 */
 
 	coremap_entry_t* ce = &coremap[page];
 	page_table_entry_t* pte = &page_table[virt_page];
@@ -370,47 +372,47 @@ int run(int argc, char** argv)
 			puts("ADD");
 			dest = source1 + source2;
 			break;
-			
+
 		case ADDI:
 			puts("ADDI");
 			dest = source1 + constant;
 			break;
-			
+
 		case SUB:
 			puts("SUB");
 			dest = source1 - source2;
 			break;
-			
+
 		case SUBI:
 			puts("SUBI");
 			dest = source1 - constant;
 			break;
-			
+
 		case MUL:
 			puts("MUL");
 			dest = source1 * source2;
 			break;
-			
+
 		case SGE:
 			puts("SGE");
 			dest = source1 >= source2;
 			break;
-			
+
 		case SGT:
 			puts("SGT");
 			dest = source1 > source2;
 			break;
-			
+
 		case SEQ:
 			puts("SEQ");
 			dest = source1 == source2;
 			break;
-			
+
 		case SEQI:
 			puts("SEQI");
 			dest = source1 == constant;
 			break;
-			
+
 		case BT:
 			puts("BT");
 			writeback = false;
@@ -419,7 +421,7 @@ int run(int argc, char** argv)
 				increment_pc = false;
 			}
 			break;
-				
+
 		case BF:
 			puts("BF");
 			writeback = false;
@@ -428,7 +430,7 @@ int run(int argc, char** argv)
 				increment_pc = false;
 			}
 			break;
-				
+
 		case BA:
 			puts("BA");
 			writeback = false;
@@ -470,12 +472,12 @@ int run(int argc, char** argv)
 			writeback = false;
 			proceed = false;
 			break;
-		
+
 		default:
 			error("illegal instruction at pc = %d: opcode = %d\n", 
-				cpu.pc, opcode);
+					cpu.pc, opcode);
 		}
-			
+
 		if (writeback && dest_reg != 0)
 			cpu.reg[dest_reg] = dest;
 
@@ -503,7 +505,7 @@ int run(int argc, char** argv)
 			printf("R%02d = %-12d", i, cpu.reg[i]);
 		}
 		printf("\n");
-	
+
 
 	}
 	return 0;
