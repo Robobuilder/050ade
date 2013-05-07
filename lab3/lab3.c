@@ -159,9 +159,16 @@ static unsigned second_chance_replace()
 
 static unsigned take_phys_page()
 {
+
 	unsigned		page;	/* Page to be replaced. */
 
 	page = (*replace)();
+
+	coremap_entry_t* ce = &coremap[page];
+	page_table_entry_t* pte = ce->owner;
+
+	/*Check if we have a dirty page, if so use swap file to save in */
+
 
 	return page;
 }
@@ -196,11 +203,13 @@ static void pagefault(unsigned virt_page)
 
 	ce->owner = pte;
 	ce->page = swapPage;
+
 	/* Set page table entry's to be right */
 	pte->page = page;
 	pte->inmemory = 1;
 	pte->ondisk = 0;
 
+	/* After the page fault is dealt with, the page is re-read. */
 	read_page(page, ce->page);
 
 
