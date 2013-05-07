@@ -173,6 +173,11 @@ static unsigned take_phys_page()
 		write_page(page,ce->page) // Physical page is page we have just taken, swp page is the coremap entrys page.(?)
 	}
 
+	pte->page = ce->page; // Set the page to point to the swap, if accessed before dumped to disk is easy to do.
+	pte->inmemory = 0;
+	pte->ondisk = 1;
+
+
 
 
 	return page;
