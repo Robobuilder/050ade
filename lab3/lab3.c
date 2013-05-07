@@ -210,7 +210,7 @@ static void pagefault(unsigned virt_page)
 
 	unsigned swapPage;
 	/* Check weather the pagetable entry is in memory */
-	if(pte->ondisk){
+	if(!pte->inmemory){
 		swapPage = pte->page;
 	} else{
 		swapPage = new_swap_page();
