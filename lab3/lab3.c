@@ -225,6 +225,8 @@ void read_program(char* file, unsigned memory[], int* ninstr)
 
 	/* Find out the number of mnemonics. */
 	n = sizeof mnemonics / sizeof mnemonics[0];
+	printf("This is file: ");
+	printf(file);
 
 	in = fopen(file, "r");
 

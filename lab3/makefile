@@ -4,13 +4,12 @@ CFLAGS		= -g -Wall -pedantic
 
 LDFLAGS		= -g
 
-OUT		= sh
+OUT		= lab3
 
-OBJS		= sh.o list.o
+OBJS		= lab3.o
 
 main: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) -o $(OUT)
-	./sh
 
 clean:
 	rm -f *.o sh core out
