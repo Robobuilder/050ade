@@ -168,30 +168,42 @@ static unsigned second_chance_replace()
 	return page;
 }
 
-static unsigned scratch_replace(){
-	int current_best_page;
-	page_table_entry_t* pte;
-	for(int i = swapCounter % RAM_PAGES; i != swapCounter; ++i % RAM_PAGES){
-		pte = &page_table[coremap[i].page];
-		if(page_points(pte) > page_points(&page_table[coremap[++i%RAM_PAGES].page])){
-			current_best_page = i;
-		}
-	}
-	assert(current_best_page < RAM_PAGES);
-
-	return current_best_page;
-}
-
-static int page_points(page_table_entry_t* p){
+static int page_score(page_table_entry_t* p){
 	if(!p->modified && !p->referenced)
-		return 4;
+		return 0;
 	if(p->modified && !p->referenced)
-		return 3;
+		return 1;
 	if(!p->modified && p->referenced)
 		return 2;
 	if(p->modified && p->referenced)
-		return 1;
-	return -1;
+		return 3;
+	return 4;
+}
+
+static unsigned scratch_replace(){
+		int page = (swapCounter+1) % RAM_PAGES;
+		page_table_entry_t* pte;
+		int i;
+		int best_page_score = 4;
+		int current_page_score = 4;
+
+
+	    for(i = (swapCounter+2) % RAM_PAGES; i != swapCounter; i = (i +1) % RAM_PAGES){
+	        pte = &page_table[coremap[i].page];
+	        current_page_score = page_score(pte);
+	        pte->referenced = 0;
+	        if( current_page_score < best_page_score){
+	            page = i;
+	            best_page_score = page_score(pte);
+	        }
+	    }
+
+
+	    swapCounter = page;
+
+	    	assert(page < RAM_PAGES);
+	        return page;
+
 }
 
 static unsigned take_phys_page()
@@ -552,8 +564,14 @@ int main(int argc, char** argv)
 {
 #if 0
 	replace = fifo_page_replace;
-#else
+#endif
+
+#if 0
 	replace = second_chance_replace;
+#endif
+
+#if 1
+	replace = scratch_replace;
 #endif
 
 	run(argc, argv);
