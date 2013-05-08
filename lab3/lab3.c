@@ -144,9 +144,7 @@ static unsigned fifo_page_replace()
 {
 	int	page;
 
-	page = (swapCounter+1)%RAM_PAGES; //lol, cant be int max if we dont have huuuge ram.
-
-	swapCounter = page;
+	page = (++swapCounter)%RAM_PAGES; //lol, cant be int max if we dont have huuuge ram.
 
 	assert(page < RAM_PAGES);
 
@@ -156,10 +154,18 @@ static unsigned fifo_page_replace()
 static unsigned second_chance_replace()
 {
 	int	page;
-
-	page = INT_MAX; 
-
+	page = (++swapCounter)%RAM_PAGES;
 	assert(page < RAM_PAGES);
+
+	coremap_entry_t* ce = &coremap[page];
+
+	page_table_entry_t* pte = &page_table[ce->page];
+
+	if(pte->referenced){
+		pte->referenced = 0; //Reset the referenced bit and move on with a new page.
+		page = second_chance_replace();
+	}
+	 return page;
 }
 
 static unsigned take_phys_page()
@@ -168,6 +174,7 @@ static unsigned take_phys_page()
 	unsigned		page;	/* Page to be replaced. */
 
 	page = (*replace)();
+
 	coremap_entry_t* ce = &coremap[page];
 
 	page_table_entry_t* pte = ce->owner;
@@ -517,7 +524,7 @@ int run(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-#if 1
+#if 0
 	replace = fifo_page_replace;
 #else
 	replace = second_chance_replace;
