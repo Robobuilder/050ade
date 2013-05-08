@@ -181,28 +181,28 @@ static int page_score(page_table_entry_t* p){
 }
 
 static unsigned scratch_replace(){
-		int page = (swapCounter+1) % RAM_PAGES;
-		page_table_entry_t* pte;
-		int i;
-		int best_page_score = 4;
-		int current_page_score = 4;
+	int page = (swapCounter+1) % RAM_PAGES;
+	page_table_entry_t* pte;
+	int i;
+	int best_page_score = 4;
+	int current_page_score = 4;
 
 
-	    for(i = (swapCounter+2) % RAM_PAGES; i != swapCounter; i = (i +1) % RAM_PAGES){
-	        pte = &page_table[coremap[i].page];
-	        current_page_score = page_score(pte);
-	        pte->referenced = 0;
-	        if( current_page_score < best_page_score){
-	            page = i;
-	            best_page_score = page_score(pte);
-	        }
-	    }
+	for(i = (swapCounter+2) % RAM_PAGES; i != swapCounter; i = (i +1) % RAM_PAGES){
+		pte = &page_table[coremap[i].page];
+		current_page_score = page_score(pte);
+		pte->referenced = 0;
+		if( current_page_score < best_page_score){
+			page = i;
+			best_page_score = page_score(pte);
+		}
+	}
 
 
-	    swapCounter = page;
+	swapCounter = page;
 
-	    	assert(page < RAM_PAGES);
-	        return page;
+	assert(page < RAM_PAGES);
+	return page;
 
 }
 
