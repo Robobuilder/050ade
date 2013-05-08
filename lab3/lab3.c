@@ -165,7 +165,33 @@ static unsigned second_chance_replace()
 		pte->referenced = 0; //Reset the referenced bit and move on with a new page.
 		page = second_chance_replace();
 	}
-	 return page;
+	return page;
+}
+
+static unsigned scratch_replace(){
+	int current_best_page;
+	page_table_entry_t* pte;
+	for(int i = swapCounter % RAM_PAGES; i != swapCounter; ++i % RAM_PAGES){
+		pte = &page_table[coremap[i].page];
+		if(page_points(pte) > page_points(&page_table[coremap[++i%RAM_PAGES].page])){
+			current_best_page = i;
+		}
+	}
+	assert(current_best_page < RAM_PAGES);
+
+	return current_best_page;
+}
+
+static int page_points(page_table_entry_t* p){
+	if(!p->modified && !p->referenced)
+		return 4;
+	if(p->modified && !p->referenced)
+		return 3;
+	if(!p->modified && p->referenced)
+		return 2;
+	if(p->modified && p->referenced)
+		return 1;
+	return -1;
 }
 
 static unsigned take_phys_page()
