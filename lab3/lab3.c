@@ -79,7 +79,7 @@ static coremap_entry_t		coremap[RAM_PAGES];	/* OS data structure. */
 static unsigned			memory[RAM_SIZE];	/* Hardware: RAM. */
 static unsigned			swap[SWAP_SIZE];	/* Hardware: disk. */
 static unsigned			(*replace)(void);	/* Page repl. alg. */
-static unsigned			swapCounter = 0; // Start from page 0.
+static unsigned			swapCounter = 0; // Start from page 0. Added this.
 
 unsigned make_instr(unsigned opcode, unsigned dest, unsigned s1, unsigned s2)
 {
@@ -154,6 +154,7 @@ static unsigned fifo_page_replace()
 static unsigned second_chance_replace()
 {
 	int	page;
+
 	page = (++swapCounter)%RAM_PAGES;
 	assert(page < RAM_PAGES);
 
@@ -163,7 +164,7 @@ static unsigned second_chance_replace()
 
 	if(pte->referenced){
 		pte->referenced = 0; //Reset the referenced bit and move on with a new page.
-		page = second_chance_replace();
+		page = second_chance_replace();//Look for next page.
 	}
 	return page;
 }
@@ -184,11 +185,11 @@ static unsigned scratch_replace(){
 	int page = (swapCounter+1) % RAM_PAGES;
 	page_table_entry_t* pte;
 	int i;
-	int best_page_score = 4;
-	int current_page_score = 4;
+	int best_page_score = 5;
+	int current_page_score;
 
 
-	for(i = (swapCounter+2) % RAM_PAGES; i != swapCounter; i = (i +1) % RAM_PAGES){
+	for(i = (swapCounter + 2) % RAM_PAGES; i != swapCounter; i = (i +1) % RAM_PAGES){
 		pte = &page_table[coremap[i].page];
 		current_page_score = page_score(pte);
 		pte->referenced = 0;
@@ -259,7 +260,9 @@ static void pagefault(unsigned virt_page)
 		swapPage = pte->page;
 	} else{
 		swapPage = new_swap_page();
+		pte->ondisk = 1; //TODO Look through the ondisk placement. If swap already exists, not goot to reallocate.
 	}
+
 
 	ce->owner = pte;
 	ce->page = swapPage;
@@ -268,7 +271,6 @@ static void pagefault(unsigned virt_page)
 	pte->page = page;
 	pte->inmemory = 1;
 	pte->modified = 0;
-	pte->ondisk = 0;
 
 	/* After the page fault is dealt with, the page is re-read. */
 	read_page(page, ce->page);
@@ -566,15 +568,16 @@ int main(int argc, char** argv)
 	replace = fifo_page_replace;
 #endif
 
-#if 0
+#if 1
 	replace = second_chance_replace;
 #endif
 
-#if 1
+#if 0
 	replace = scratch_replace;
 #endif
 
 	run(argc, argv);
-
+	printf("%i",new_swap_page());
+	printf("\n");
 	printf("%llu page faults\n", num_pagefault);
 }
